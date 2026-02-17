@@ -1,11 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lectura de Recibo de Luz CFE</title>
-  <link rel="stylesheet" href="styles.css">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -17,7 +15,7 @@
       background: white;
       border-radius: 12px;
       padding: 25px;
-      max-width: 600px;
+      max-width: 900px;
       margin: auto;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
@@ -31,94 +29,175 @@
     th, td {
       border: 1px solid #ccc;
       padding: 8px;
+      text-align: center;
     }
     th {
       background-color: #2c3e50;
       color: white;
     }
-    #total {
+    #textoDetectado {
+      text-align: left;
+      background-color: #eef;
+      padding: 10px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      margin-top: 15px;
+    }
+    #total, #costo {
       font-weight: bold;
       color: #16a085;
       margin-top: 10px;
+    }
+    select {
+      margin-top: 10px;
+      padding: 5px;
+      font-size: 1rem;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 id="nombre">Martin Rigoberto Ruiz Chavez</h1>
+    <h1>Martin Rigoberto Ruiz Chavez</h1>
     <h2>Probabilidad y Estadística</h2>
     <h3>Factura de Consumo de Energía Eléctrica (CFE)</h3>
 
     <p><strong>Sube tu recibo (imagen o PDF):</strong></p>
     <input type="file" id="archivo" accept=".png,.jpg,.jpeg,.pdf" />
     <p id="estado"></p>
+
+    <div>
+      <label for="tarifa">Selecciona tarifa estimada:</label>
+      <select id="tarifa">
+        <option value="0.87">Doméstica 1 ($0.87/kWh)</option>
+        <option value="1.20">Doméstica 1C ($1.20/kWh)</option>
+        <option value="1.50">Doméstica de Alto Consumo (DAC) ($1.50/kWh)</option>
+      </select>
+    </div>
+
+    <div id="textoDetectado"></div>
     <div id="tabla"></div>
     <div id="total"></div>
+    <div id="costo"></div>
   </div>
 
-  <!-- Librería OCR -->
+  <!-- Librerías necesarias -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
 
   <script>
     const inputArchivo = document.getElementById("archivo");
     const estado = document.getElementById("estado");
+    const textoDetectado = document.getElementById("textoDetectado");
     const tablaDiv = document.getElementById("tabla");
     const totalDiv = document.getElementById("total");
+    const costoDiv = document.getElementById("costo");
+    const tarifaSelect = document.getElementById("tarifa");
+
+    // Convierte PDF a imagen para OCR
+    async function extraerTextoDePDF(archivo) {
+      const pdfData = new Uint8Array(await archivo.arrayBuffer());
+      const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+      let texto = "";
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: context, viewport }).promise;
+        const { data: { text } } = await Tesseract.recognize(canvas, 'spa', {
+          logger: m => console.log(m)
+        });
+        texto += text + "\n";
+      }
+      return texto;
+    }
+
+    // Lee imagen directamente
+    async function extraerTextoDeImagen(archivo) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async function () {
+          const { data: { text } } = await Tesseract.recognize(reader.result, 'spa', {
+            logger: m => console.log(m)
+          });
+          resolve(text);
+        };
+        reader.readAsDataURL(archivo);
+      });
+    }
 
     inputArchivo.addEventListener("change", async () => {
       const archivo = inputArchivo.files[0];
       if (!archivo) return;
 
       estado.textContent = "Leyendo el recibo... Esto puede tardar unos segundos ⏳";
+      textoDetectado.innerHTML = "";
       tablaDiv.innerHTML = "";
       totalDiv.textContent = "";
+      costoDiv.textContent = "";
 
-      const reader = new FileReader();
-      reader.onload = async function () {
-        const { data: { text } } = await Tesseract.recognize(reader.result, 'spa', {
-          logger: m => console.log(m)
-        });
+      let texto = "";
 
-        estado.textContent = "Procesamiento completo ✅";
+      try {
+        if (archivo.type === "application/pdf") {
+          texto = await extraerTextoDePDF(archivo);
+        } else {
+          texto = await extraerTextoDeImagen(archivo);
+        }
+      } catch (err) {
+        estado.textContent = "Error al procesar el archivo 😕";
+        console.error(err);
+        return;
+      }
 
-        // Filtrar líneas que contengan datos de consumo (kWh)
-        const lineas = text.split('\n').map(l => l.trim()).filter(l => l);
-        const consumos = [];
+      estado.textContent = "Procesamiento completo ✅";
+      textoDetectado.innerHTML = "<h4>Texto detectado:</h4>" + texto.replace(/\n/g, "<br>");
 
-        for (let i = 0; i < lineas.length; i++) {
-          if (/kwh|kw h|wh/i.test(lineas[i])) {
-            const numeros = lineas[i].match(/(\d+(\.\d+)?)/g);
-            if (numeros) {
-              numeros.forEach(num => {
-                consumos.push(parseFloat(num));
-              });
-            }
+      // Buscar valores de consumo
+      const lineas = texto.split('\n').map(l => l.trim()).filter(l => l);
+      const consumos = [];
+
+      for (let i = 0; i < lineas.length; i++) {
+        if (/kwh|kw h|wh|consumo/i.test(lineas[i])) {
+          const numeros = lineas[i].match(/(\d+(\.\d+)?)/g);
+          if (numeros) {
+            numeros.forEach(num => {
+              const valor = parseFloat(num);
+              if (!isNaN(valor) && valor < 20000 && valor > 0) { // filtro razonable
+                consumos.push(valor);
+              }
+            });
           }
         }
+      }
 
-        if (consumos.length === 0) {
-          tablaDiv.innerHTML = "<p>No se detectaron consumos. Revisa que la imagen sea clara.</p>";
-          return;
-        }
+      if (consumos.length === 0) {
+        tablaDiv.innerHTML = "<p>No se detectaron valores de consumo. Revisa que la imagen o PDF sea clara.</p>";
+        return;
+      }
 
-        // Crear tabla con periodos
-        let html = "<table><tr><th>Periodo</th><th>Consumo (kWh)</th></tr>";
-        consumos.forEach((valor, idx) => {
-          html += <tr><td>Periodo ${idx + 1}</td><td>${valor}</td></tr>;
-        });
-        html += "</table>";
+      // Mostrar tabla
+      let html = "<table><tr><th>Periodo</th><th>Consumo (kWh)</th></tr>";
+      consumos.forEach((valor, idx) => {
+        html += <tr><td>Periodo ${idx + 1}</td><td>${valor}</td></tr>;
+      });
+      html += "</table>";
+      tablaDiv.innerHTML = html;
 
-        // Calcular el total
-        const total = consumos.reduce((a, b) => a + b, 0);
+      // Calcular total
+      const total = consumos.reduce((a, b) => a + b, 0);
+      totalDiv.textContent = ⚡ Consumo total detectado: ${total.toFixed(2)} kWh;
 
-        tablaDiv.innerHTML = html;
-        totalDiv.textContent = ⚡ Consumo total detectado: ${total.toFixed(2)} kWh;
-      };
-      reader.readAsDataURL(archivo);
+      // Calcular costo estimado
+      const tarifa = parseFloat(tarifaSelect.value);
+      const costo = total * tarifa;
+      costoDiv.textContent = 💰 Costo estimado: $${costo.toFixed(2)} MXN (Tarifa $${tarifa}/kWh);
     });
   </script>
 </body>
 </html>
-
-
 
