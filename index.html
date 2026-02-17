@@ -10,9 +10,129 @@
     <div class="container">
         <h1 id="nombre"> Martin Rigoberto Ruiz Chavez</h1>
         <h2 >Probabilidad y estadistica</h2>
-        <h3> factura de consumo eléctrico </h>
+        <h3> factura de consumo eléctrico </h3>
     </div>
     <script src="script.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lectura de Recibo de Luz CFE</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      text-align: center;
+      padding: 30px;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      max-width: 600px;
+      margin: auto;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h1, h2, h3 { color: #2c3e50; }
+    input { margin-top: 15px; }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      width: 90%;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+    th {
+      background-color: #2c3e50;
+      color: white;
+    }
+    #total {
+      font-weight: bold;
+      color: #16a085;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="nombre">Martin Rigoberto Ruiz Chavez</h1>
+    <h2>Probabilidad y Estadística</h2>
+    <h3>Factura de Consumo de Energía Eléctrica (CFE)</h3>
+
+    <p><strong>Sube tu recibo (imagen o PDF):</strong></p>
+    <input type="file" id="archivo" accept=".png,.jpg,.jpeg,.pdf" />
+    <p id="estado"></p>
+    <div id="tabla"></div>
+    <div id="total"></div>
+  </div>
+
+  <!-- Librería OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
+
+  <script>
+    const inputArchivo = document.getElementById("archivo");
+    const estado = document.getElementById("estado");
+    const tablaDiv = document.getElementById("tabla");
+    const totalDiv = document.getElementById("total");
+
+    inputArchivo.addEventListener("change", async () => {
+      const archivo = inputArchivo.files[0];
+      if (!archivo) return;
+
+      estado.textContent = "Leyendo el recibo... Esto puede tardar unos segundos ⏳";
+      tablaDiv.innerHTML = "";
+      totalDiv.textContent = "";
+
+      const reader = new FileReader();
+      reader.onload = async function () {
+        const { data: { text } } = await Tesseract.recognize(reader.result, 'spa', {
+          logger: m => console.log(m)
+        });
+
+        estado.textContent = "Procesamiento completo ✅";
+
+        // Filtrar líneas que contengan datos de consumo (kWh)
+        const lineas = text.split('\n').map(l => l.trim()).filter(l => l);
+        const consumos = [];
+
+        for (let i = 0; i < lineas.length; i++) {
+          if (/kwh|kw h|wh/i.test(lineas[i])) {
+            const numeros = lineas[i].match(/(\d+(\.\d+)?)/g);
+            if (numeros) {
+              numeros.forEach(num => {
+                consumos.push(parseFloat(num));
+              });
+            }
+          }
+        }
+
+        if (consumos.length === 0) {
+          tablaDiv.innerHTML = "<p>No se detectaron consumos. Revisa que la imagen sea clara.</p>";
+          return;
+        }
+
+        // Crear tabla con periodos
+        let html = "<table><tr><th>Periodo</th><th>Consumo (kWh)</th></tr>";
+        consumos.forEach((valor, idx) => {
+          html += <tr><td>Periodo ${idx + 1}</td><td>${valor}</td></tr>;
+        });
+        html += "</table>";
+
+        // Calcular el total
+        const total = consumos.reduce((a, b) => a + b, 0);
+
+        tablaDiv.innerHTML = html;
+        totalDiv.textContent = ⚡ Consumo total detectado: ${total.toFixed(2)} kWh;
+      };
+      reader.readAsDataURL(archivo);
+    });
+  </script>
 </body>
 </html>
 
