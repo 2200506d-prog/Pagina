@@ -1,132 +1,143 @@
-  // Configuración de worker para PDF.js
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-  const inputArchivo = document.getElementById("archivo");
-  const estado = document.getElementById("estado");
-  const textoDetectado = document.getElementById("textoDetectado");
-  const tablaDiv = document.getElementById("tabla");
-  const totalDiv = document.getElementById("total");
-  const costoDiv = document.getElementById("costo");
-  const tarifaSelect = document.getElementById("tarifa");
+const IVA = 0.16;
+const DAP = 0.05; // 5% ejemplo
 
-  // Convierte PDF a imagen para OCR
-  async function extraerTextoDePDF(archivo) {
-    const pdfData = new Uint8Array(await archivo.arrayBuffer());
-    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-    let texto = "";
+const tarifasCFE = {
+  "1": { basicoLimite: 75, intermedioLimite: 140, basico: 0.98, intermedio: 1.19, excedente: 3.45 },
+  "1A": { basicoLimite: 100, intermedioLimite: 150, basico: 0.85, intermedio: 1.05, excedente: 3.50 },
+  "1B": { basicoLimite: 125, intermedioLimite: 200, basico: 0.80, intermedio: 1.00, excedente: 3.55 }
+};
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+const inputArchivo = document.getElementById("archivo");
+const estado = document.getElementById("estado");
+const resultado = document.getElementById("resultado");
 
-      await page.render({ canvasContext: context, viewport }).promise;
-      const { data: { text } } = await Tesseract.recognize(canvas, 'spa');
-      texto += text + "\n";
-    }
-    return texto;
+async function extraerTextoPDF(archivo) {
+  const pdfData = new Uint8Array(await archivo.arrayBuffer());
+  const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+  let texto = "";
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    const { data: { text } } = await Tesseract.recognize(canvas, 'spa');
+    texto += text + "\n";
   }
 
-  // Lee imagen directamente
-  async function extraerTextoDeImagen(archivo) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async function () {
-        const { data: { text } } = await Tesseract.recognize(reader.result, 'spa');
-        resolve(text);
-      };
-      reader.readAsDataURL(archivo);
-    });
+  return texto;
+}
+
+async function extraerTextoImagen(archivo) {
+  const reader = new FileReader();
+  return new Promise(resolve => {
+    reader.onload = async () => {
+      const { data: { text } } =
+        await Tesseract.recognize(reader.result, 'spa');
+      resolve(text);
+    };
+    reader.readAsDataURL(archivo);
+  });
+}
+
+function detectarConsumo(texto) {
+  const lineas = texto.split("\n");
+  let consumo = 0;
+
+  for (let linea of lineas) {
+    if (linea.toLowerCase().includes("kwh")) {
+      const numeros = linea.match(/\d+/g);
+      if (numeros) consumo = parseInt(numeros[numeros.length - 1]);
+    }
   }
+  return consumo;
+}
 
-  inputArchivo.addEventListener("change", async () => {
-    const archivo = inputArchivo.files[0];
-    if (!archivo) return;
+function detectarTotal(texto) {
+  const match = texto.match(/\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
+  if (match) {
+    let posibles = match.map(n => parseFloat(n.replace(/[^\d.]/g,'')));
+    return Math.max(...posibles);
+  }
+  return 0;
+}
 
-    estado.textContent = "Leyendo el recibo... Esto puede tardar unos segundos ⏳";
-    textoDetectado.style.display = "none";
-    tablaDiv.innerHTML = "";
-    totalDiv.textContent = "";
-    costoDiv.textContent = "";
+function calcularCosto(consumo, tipo="1") {
+  const t = tarifasCFE[tipo];
+  let restante = consumo;
+  let total = 0;
 
-    let texto = "";
+  let basico = Math.min(restante, t.basicoLimite);
+  total += basico * t.basico;
+  restante -= basico;
 
-    try {
-      if (archivo.type === "application/pdf") {
-        texto = await extraerTextoDePDF(archivo);
-      } else {
-        texto = await extraerTextoDeImagen(archivo);
-      }
-    } catch (err) {
-      estado.textContent = "Error al procesar el archivo 😕";
-      console.error(err);
-      return;
-    }
+  let intermedio = Math.min(restante, t.intermedioLimite - t.basicoLimite);
+  total += intermedio * t.intermedio;
+  restante -= intermedio;
 
-    estado.textContent = "Procesamiento completo ✅";
-    textoDetectado.innerHTML = "<h4>Texto detectado:</h4>" + texto.replace(/\n/g, "<br>");
+  if (restante > 0) total += restante * t.excedente;
 
-    // --- NUEVA LÓGICA DE EXTRACCIÓN ---
-    const lineas = texto.split('\n').map(l => l.trim()).filter(l => l);
-    let consumoReal = 0;
-    let totalPagarLeido = 0;
+  return total;
+}
 
-    for (let i = 0; i < lineas.length; i++) {
-      let linea = lineas[i].toLowerCase();
+function calcularImpuestos(subtotal) {
+  const iva = subtotal * IVA;
+  const dap = subtotal * DAP;
+  return { iva, dap, totalFinal: subtotal + iva + dap };
+}
 
-      // 1. Detectar el Consumo Real (Evitando sumar las lecturas del medidor)
-      if (linea.includes('kwh') || linea.includes('energía') || linea.includes('energia')) {
-        const numeros = linea.match(/\d+/g);
-        if (numeros && numeros.length >= 3) {
-          // CFE suele poner: [Lectura Actual] [Lectura Anterior] [Consumo]
-          let actual = parseInt(numeros[0]);
-          let anterior = parseInt(numeros[1]);
-          let consumo = parseInt(numeros[numeros.length - 1]); 
-          
-          // Verificamos por lógica matemática que no estemos tomando la lectura del medidor
-          if (Math.abs(actual - anterior) === consumo || consumo < actual) {
-              consumoReal = consumo;
-          }
-        } else if (numeros && numeros.length === 1) {
-           if (consumoReal === 0) consumoReal = parseInt(numeros[0]);
-        }
-      }
+function generarGrafica(consumoActual) {
+  const ctx = document.getElementById("grafica");
 
-      // 2. Intentar leer el "Total a Pagar" directamente del recibo
-      if (linea.includes('total') || linea.includes('pagar') || linea.includes('importe')) {
-         // Busca formatos de dinero ej. 1,200.50 o 350
-         let regexDinero = /\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/;
-         let match = linea.match(regexDinero);
-         if (match && parseFloat(match[1].replace(',', '')) > 0) {
-             totalPagarLeido = parseFloat(match[1].replace(',', ''));
-         }
-      }
-    }
-
-    if (consumoReal === 0) {
-      tablaDiv.innerHTML = "<p>No se detectó el consumo exacto. Revisa que la foto esté bien enfocada en los números.</p>";
-      return;
-    }
-
-    // Mostrar resultados
-    tablaDiv.innerHTML = `<table><tr><th>Concepto</th><th>Valor Detectado</th></tr>
-                          <tr><td>Consumo facturado</td><td>${consumoReal} kWh</td></tr></table>`;
-
-    totalDiv.textContent = `⚡ Consumo real detectado: ${consumoReal} kWh`;
-
-    // Cálculo estimado (tarifa plana) vs Lo que leyó del papel
-    const tarifa = parseFloat(tarifaSelect.value);
-    const costoEstimado = consumoReal * tarifa;
-
-    if (totalPagarLeido > 0) {
-       costoDiv.innerHTML = `💰 <strong>Total a pagar leído del recibo: $${totalPagarLeido.toFixed(2)} MXN</strong><br>
-                             <span style="font-size: 0.85em; color: gray; margin-top:5px; display:block;">
-                             (Cálculo matemático simple sin IVA/DAP: $${costoEstimado.toFixed(2)} MXN)</span>`;
-    } else {
-       costoDiv.innerHTML = `💰 Costo estimado matemático: $${costoEstimado.toFixed(2)} MXN <br>
-                             <span style="font-size: 0.8em; color: gray;">(No se pudo leer el total exacto del recibo impreso)</span>`;
+  new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Periodo Actual"],
+      datasets: [{
+        label: "Consumo kWh",
+        data: [consumoActual]
+      }]
     }
   });
+}
+
+inputArchivo.addEventListener("change", async () => {
+  const archivo = inputArchivo.files[0];
+  if (!archivo) return;
+
+  estado.textContent = "Analizando recibo... ⏳";
+  resultado.innerHTML = "";
+
+  let texto = archivo.type === "application/pdf"
+    ? await extraerTextoPDF(archivo)
+    : await extraerTextoImagen(archivo);
+
+  const consumo = detectarConsumo(texto);
+  const subtotal = calcularCosto(consumo);
+  const impuestos = calcularImpuestos(subtotal);
+  const totalLeido = detectarTotal(texto);
+
+  estado.textContent = "Análisis completo ✅";
+
+  resultado.innerHTML = `
+    <h3>Desglose</h3>
+    <p>⚡ Consumo: ${consumo} kWh</p>
+    <p>💵 Subtotal energía: $${subtotal.toFixed(2)}</p>
+    <p>IVA (16%): $${impuestos.iva.toFixed(2)}</p>
+    <p>DAP (5% ejemplo): $${impuestos.dap.toFixed(2)}</p>
+    <h3>Total estimado: $${impuestos.totalFinal.toFixed(2)} MXN</h3>
+    <hr>
+    <p><strong>Total detectado en recibo:</strong> $${totalLeido.toFixed(2)} MXN</p>
+  `;
+
+  generarGrafica(consumo);
+});
