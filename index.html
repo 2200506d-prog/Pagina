@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lectura de Recibo de Luz CFE</title>
+  <title>Lectura de Recibo de Luz CFE PRO</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -21,86 +22,63 @@
     }
     h1, h2, h3 { color: #2c3e50; }
     input { margin-top: 15px; }
-    table {
-      margin: 20px auto;
-      border-collapse: collapse;
-      width: 90%;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: center;
-    }
-    th {
-      background-color: #2c3e50;
-      color: white;
-    }
-    #textoDetectado {
-      text-align: left;
-      background-color: #eef;
-      padding: 10px;
-      border-radius: 8px;
-      white-space: pre-wrap;
+    #estado {
       margin-top: 15px;
-      display: none; /* Oculto por defecto para no saturar la pantalla */
-    }
-    #total, #costo {
       font-weight: bold;
-      color: #16a085;
-      margin-top: 10px;
-      font-size: 1.2em;
     }
-    select {
-      margin-top: 10px;
-      padding: 5px;
-      font-size: 1rem;
+    #resultado {
+      margin-top: 20px;
+      background: #eef;
+      padding: 15px;
+      border-radius: 10px;
+    }
+    canvas {
+      margin-top: 25px;
     }
   </style>
 </head>
 <body>
+
   <div class="container">
     <h1>Martin Rigoberto Ruiz Chavez</h1>
     <h2>Probabilidad y Estadística</h2>
-    <h3>Factura de Consumo de Energía Eléctrica (CFE)</h3>
+    <h3>Factura de Consumo de Energía Eléctrica (CFE) ⚡</h3>
 
     <p><strong>Sube tu recibo (imagen o PDF):</strong></p>
     <input type="file" id="archivo" accept=".png,.jpg,.jpeg,.pdf" />
+    
     <p id="estado"></p>
 
-    <div>
-      <label for="tarifa">Selecciona tarifa estimada:</label>
-      <select id="tarifa">
-        <option value="0.87">Doméstica 1 ($0.87/kWh)</option>
-        <option value="1.20">Doméstica 1C ($1.20/kWh)</option>
-        <option value="1.50">Doméstica de Alto Consumo (DAC) ($1.50/kWh)</option>
-      </select>
-    </div>
+    <div id="resultado"></div>
 
-    <h4>Tu tarifa de consumo es la siguiente</h4>
-    
-    <div id="textoDetectado"></div>
-    <div id="tabla"></div>
-    <div id="total"></div>
-    <div id="costo"></div>
+    <!-- Gráfica -->
+    <canvas id="grafica" width="400" height="200"></canvas>
   </div>
 
+  <!-- Librerías -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script>
-    // Configuración de worker para PDF.js
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    const IVA = 0.16;
+    const DAP = 0.05;
+
+    const tarifasCFE = {
+      "1": { basicoLimite: 75, intermedioLimite: 140, basico: 0.98, intermedio: 1.19, excedente: 3.45 },
+      "1A": { basicoLimite: 100, intermedioLimite: 150, basico: 0.85, intermedio: 1.05, excedente: 3.50 },
+      "1B": { basicoLimite: 125, intermedioLimite: 200, basico: 0.80, intermedio: 1.00, excedente: 3.55 }
+    };
 
     const inputArchivo = document.getElementById("archivo");
     const estado = document.getElementById("estado");
-    const textoDetectado = document.getElementById("textoDetectado");
-    const tablaDiv = document.getElementById("tabla");
-    const totalDiv = document.getElementById("total");
-    const costoDiv = document.getElementById("costo");
-    const tarifaSelect = document.getElementById("tarifa");
+    const resultado = document.getElementById("resultado");
 
-    // Convierte PDF a imagen para OCR
-    async function extraerTextoDePDF(archivo) {
+    async function extraerTextoPDF(archivo) {
       const pdfData = new Uint8Array(await archivo.arrayBuffer());
       const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
       let texto = "";
@@ -110,29 +88,76 @@
         const viewport = page.getViewport({ scale: 2 });
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
+
         canvas.width = viewport.width;
         canvas.height = viewport.height;
 
         await page.render({ canvasContext: context, viewport }).promise;
-        const { data: { text } } = await Tesseract.recognize(canvas, 'spa', {
-          logger: m => console.log(m)
-        });
+
+        const { data: { text } } =
+          await Tesseract.recognize(canvas, 'spa');
+
         texto += text + "\n";
       }
+
       return texto;
     }
 
-    // Lee imagen directamente
-    async function extraerTextoDeImagen(archivo) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = async function () {
-          const { data: { text } } = await Tesseract.recognize(reader.result, 'spa', {
-            logger: m => console.log(m)
-          });
+    async function extraerTextoImagen(archivo) {
+      const reader = new FileReader();
+      return new Promise(resolve => {
+        reader.onload = async () => {
+          const { data: { text } } =
+            await Tesseract.recognize(reader.result, 'spa');
           resolve(text);
         };
         reader.readAsDataURL(archivo);
+      });
+    }
+
+    function detectarConsumo(texto) {
+      const lineas = texto.split("\n");
+      let consumo = 0;
+
+      for (let linea of lineas) {
+        if (linea.toLowerCase().includes("kwh")) {
+          const numeros = linea.match(/\d+/g);
+          if (numeros) consumo = parseInt(numeros[numeros.length - 1]);
+        }
+      }
+      return consumo;
+    }
+
+    function calcularCosto(consumo) {
+      const t = tarifasCFE["1"]; // Puedes cambiar si quieres detectar automática
+      let restante = consumo;
+      let total = 0;
+
+      let basico = Math.min(restante, t.basicoLimite);
+      total += basico * t.basico;
+      restante -= basico;
+
+      let intermedio = Math.min(restante, t.intermedioLimite - t.basicoLimite);
+      total += intermedio * t.intermedio;
+      restante -= intermedio;
+
+      if (restante > 0) total += restante * t.excedente;
+
+      return total;
+    }
+
+    function generarGrafica(consumoActual) {
+      const ctx = document.getElementById("grafica");
+
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: ["Periodo Actual"],
+          datasets: [{
+            label: "Consumo kWh",
+            data: [consumoActual]
+          }]
+        }
       });
     }
 
@@ -140,70 +165,34 @@
       const archivo = inputArchivo.files[0];
       if (!archivo) return;
 
-      estado.textContent = "Leyendo el recibo... Esto puede tardar unos segundos ⏳";
-      textoDetectado.style.display = "none";
-      tablaDiv.innerHTML = "";
-      totalDiv.textContent = "";
-      costoDiv.textContent = "";
+      estado.textContent = "Analizando recibo... ⏳";
+      resultado.innerHTML = "";
 
-      let texto = "";
+      let texto = archivo.type === "application/pdf"
+        ? await extraerTextoPDF(archivo)
+        : await extraerTextoImagen(archivo);
 
-      try {
-        if (archivo.type === "application/pdf") {
-          texto = await extraerTextoDePDF(archivo);
-        } else {
-          texto = await extraerTextoDeImagen(archivo);
-        }
-      } catch (err) {
-        estado.textContent = "Error al procesar el archivo 😕";
-        console.error(err);
-        return;
-      }
+      const consumo = detectarConsumo(texto);
+      const subtotal = calcularCosto(consumo);
+      const iva = subtotal * IVA;
+      const dap = subtotal * DAP;
+      const totalFinal = subtotal + iva + dap;
 
-      estado.textContent = "Procesamiento completo ✅";
-      // Si quieres ver todo el texto que extrae la IA, cambia "none" a "block" en el CSS de #textoDetectado
-      textoDetectado.innerHTML = "<h4>Texto detectado:</h4>" + texto.replace(/\n/g, "<br>");
+      estado.textContent = "Análisis completo ✅";
 
-      // Buscar valores de consumo
-      const lineas = texto.split('\n').map(l => l.trim()).filter(l => l);
-      const consumos = [];
+      resultado.innerHTML = `
+        <h3>Desglose</h3>
+        <p>⚡ Consumo: ${consumo} kWh</p>
+        <p>💵 Subtotal energía: $${subtotal.toFixed(2)}</p>
+        <p>IVA (16%): $${iva.toFixed(2)}</p>
+        <p>DAP (5%): $${dap.toFixed(2)}</p>
+        <h3>Total estimado: $${totalFinal.toFixed(2)} MXN</h3>
+      `;
 
-      for (let i = 0; i < lineas.length; i++) {
-        if (/kwh|kw h|wh|consumo/i.test(lineas[i])) {
-          const numeros = lineas[i].match(/(\d+(\.\d+)?)/g);
-          if (numeros) {
-            numeros.forEach(num => {
-              const valor = parseFloat(num);
-              if (!isNaN(valor) && valor < 20000 && valor > 0) { // filtro razonable
-                consumos.push(valor);
-              }
-            });
-          }
-        }
-      }
-
-      if (consumos.length === 0) {
-        tablaDiv.innerHTML = "<p>No se detectaron valores de consumo. Revisa que la imagen o PDF sea clara.</p>";
-        return;
-      }
-
-      // Mostrar tabla (CORREGIDO: Faltaban las comillas invertidas ` `)
-      let html = "<table><tr><th>Periodo</th><th>Consumo (kWh)</th></tr>";
-      consumos.forEach((valor, idx) => {
-        html += `<tr><td>Periodo ${idx + 1}</td><td>${valor}</td></tr>`;
-      });
-      html += "</table>";
-      tablaDiv.innerHTML = html;
-
-      // Calcular total (CORREGIDO: Faltaban las comillas invertidas ` `)
-      const total = consumos.reduce((a, b) => a + b, 0);
-      totalDiv.textContent = `⚡ Consumo total detectado: ${total.toFixed(2)} kWh`;
-
-      // Calcular costo estimado (CORREGIDO: Faltaban las comillas invertidas ` `)
-      const tarifa = parseFloat(tarifaSelect.value);
-      const costo = total * tarifa;
-      costoDiv.textContent = `💰 Costo estimado: $${costo.toFixed(2)} MXN (Tarifa $${tarifa}/kWh)`;
+      generarGrafica(consumo);
     });
+
   </script>
+
 </body>
 </html>
