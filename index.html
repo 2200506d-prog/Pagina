@@ -42,11 +42,13 @@
       border-radius: 8px;
       white-space: pre-wrap;
       margin-top: 15px;
+      display: none; /* Oculto por defecto para no saturar la pantalla */
     }
     #total, #costo {
       font-weight: bold;
       color: #16a085;
       margin-top: 10px;
+      font-size: 1.2em;
     }
     select {
       margin-top: 10px;
@@ -73,18 +75,22 @@
         <option value="1.50">Doméstica de Alto Consumo (DAC) ($1.50/kWh)</option>
       </select>
     </div>
-<title> tu tarifa de consumo es la siguiente </title>
+
+    <h4>Tu tarifa de consumo es la siguiente</h4>
+    
     <div id="textoDetectado"></div>
     <div id="tabla"></div>
     <div id="total"></div>
     <div id="costo"></div>
   </div>
 
-  <!-- Librerías necesarias -->
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
 
   <script>
+    // Configuración de worker para PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
     const inputArchivo = document.getElementById("archivo");
     const estado = document.getElementById("estado");
     const textoDetectado = document.getElementById("textoDetectado");
@@ -135,7 +141,7 @@
       if (!archivo) return;
 
       estado.textContent = "Leyendo el recibo... Esto puede tardar unos segundos ⏳";
-      textoDetectado.innerHTML = "";
+      textoDetectado.style.display = "none";
       tablaDiv.innerHTML = "";
       totalDiv.textContent = "";
       costoDiv.textContent = "";
@@ -155,6 +161,7 @@
       }
 
       estado.textContent = "Procesamiento completo ✅";
+      // Si quieres ver todo el texto que extrae la IA, cambia "none" a "block" en el CSS de #textoDetectado
       textoDetectado.innerHTML = "<h4>Texto detectado:</h4>" + texto.replace(/\n/g, "<br>");
 
       // Buscar valores de consumo
@@ -180,26 +187,23 @@
         return;
       }
 
-      // Mostrar tabla
+      // Mostrar tabla (CORREGIDO: Faltaban las comillas invertidas ` `)
       let html = "<table><tr><th>Periodo</th><th>Consumo (kWh)</th></tr>";
       consumos.forEach((valor, idx) => {
-        html += <tr><td>Periodo ${idx + 1}</td><td>${valor}</td></tr>;
+        html += `<tr><td>Periodo ${idx + 1}</td><td>${valor}</td></tr>`;
       });
       html += "</table>";
       tablaDiv.innerHTML = html;
 
-      // Calcular total
+      // Calcular total (CORREGIDO: Faltaban las comillas invertidas ` `)
       const total = consumos.reduce((a, b) => a + b, 0);
-      totalDiv.textContent = ⚡ Consumo total detectado: ${total.toFixed(2)} kWh;
+      totalDiv.textContent = `⚡ Consumo total detectado: ${total.toFixed(2)} kWh`;
 
-      // Calcular costo estimado
+      // Calcular costo estimado (CORREGIDO: Faltaban las comillas invertidas ` `)
       const tarifa = parseFloat(tarifaSelect.value);
       const costo = total * tarifa;
-      costoDiv.textContent = 💰 Costo estimado: $${costo.toFixed(2)} MXN (Tarifa $${tarifa}/kWh);
+      costoDiv.textContent = `💰 Costo estimado: $${costo.toFixed(2)} MXN (Tarifa $${tarifa}/kWh)`;
     });
   </script>
 </body>
 </html>
-
-
-
