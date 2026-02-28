@@ -1,59 +1,72 @@
 <!DOCTYPE html>
 <html lang="es">
+
+<!-- ========= ESTE ES EL PUNTO 2 ========= -->
+
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Analizador CFE Pro</title>
+<title>Analizador Inteligente CFE</title>
 
 <style>
-body{
-  margin:0;
-  font-family:Arial, sans-serif;
-  background:#0f172a;
-  color:#e5e7eb;
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #061b11, #0d2f1f);
+    color: #ffffff;
+    text-align: center;
 }
 
-.container{
-  max-width:900px;
-  margin:40px auto;
-  background:#111827;
-  padding:30px;
-  border-radius:15px;
-  box-shadow:0 0 25px rgba(0,255,150,0.2);
+.container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 30px;
+    background: #0f2a1d;
+    border-radius: 20px;
+    box-shadow: 0 0 40px rgba(0,255,120,0.2);
 }
 
-h1{
-  text-align:center;
-  color:#22c55e;
+h1 {
+    color: #00ff88;
+    font-size: 2.5rem;
 }
 
-input[type="file"]{
-  display:block;
-  margin:20px auto;
-  padding:10px;
-  background:#1f2937;
-  color:white;
-  border:1px solid #22c55e;
-  border-radius:8px;
+input[type="file"] {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 2px solid #00ff88;
+    background: #062016;
+    color: white;
 }
 
-#estado{
-  text-align:center;
-  margin-top:15px;
-  color:#4ade80;
-  font-weight:bold;
+.card {
+    margin-top: 30px;
+    padding: 30px;
+    background: #132f23;
+    border-radius: 20px;
+    border-left: 6px solid #00ff88;
+    box-shadow: 0 0 25px rgba(0,255,120,0.2);
 }
 
-#resultado{
-  margin-top:25px;
-  padding:20px;
-  background:#1e293b;
-  border-left:5px solid #22c55e;
-  border-radius:10px;
+.total {
+    font-size: 3rem;
+    color: #00ff88;
+    font-weight: bold;
 }
 
-h2{
-  color:#22c55e;
+.error {
+    margin-top: 20px;
+    padding: 15px;
+    background: #3a1010;
+    border-radius: 10px;
+    color: #ff6b6b;
+}
+
+#estado {
+    margin-top: 15px;
+    color: #00ff88;
+    font-weight: bold;
 }
 </style>
 </head>
@@ -63,6 +76,8 @@ h2{
 <div class="container">
 
 <h1>Analizador Inteligente de Recibos CFE ⚡</h1>
+
+<p>Sube tu recibo (imagen o PDF)</p>
 
 <input type="file" id="archivo" accept=".png,.jpg,.jpeg,.pdf">
 
@@ -76,8 +91,6 @@ h2{
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
 
 <script>
-document.addEventListener("DOMContentLoaded", function(){
-
 pdfjsLib.GlobalWorkerOptions.workerSrc =
 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -85,97 +98,95 @@ const inputArchivo = document.getElementById("archivo");
 const estado = document.getElementById("estado");
 const resultado = document.getElementById("resultado");
 
-async function extraerTexto(archivo){
+async function extraerTexto(file) {
+    if (file.type === "application/pdf") {
+        const pdfData = new Uint8Array(await file.arrayBuffer());
+        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+        let textoCompleto = "";
 
-  if(archivo.type === "application/pdf"){
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 2 });
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
 
-    const pdfData = new Uint8Array(await archivo.arrayBuffer());
-    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+            await page.render({ canvasContext: context, viewport }).promise;
 
-    let texto = "";
+            const { data: { text } } =
+                await Tesseract.recognize(canvas, 'spa');
 
-    for(let i=1;i<=pdf.numPages;i++){
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale:2 });
+            textoCompleto += text + "\n";
+        }
 
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      await page.render({canvasContext:context,viewport}).promise;
-
-      const { data:{ text } } =
-        await Tesseract.recognize(canvas,'spa');
-
-      texto += text + "\n";
+        return textoCompleto;
+    } else {
+        const reader = new FileReader();
+        return new Promise(resolve => {
+            reader.onload = async function () {
+                const { data: { text } } =
+                    await Tesseract.recognize(reader.result, 'spa');
+                resolve(text);
+            };
+            reader.readAsDataURL(file);
+        });
     }
-
-    return texto;
-
-  } else {
-
-    const reader = new FileReader();
-
-    return new Promise(resolve=>{
-      reader.onload = async ()=>{
-        const { data:{ text } } =
-          await Tesseract.recognize(reader.result,'spa');
-        resolve(text);
-      };
-      reader.readAsDataURL(archivo);
-    });
-
-  }
 }
 
-function detectarTotal(texto){
-  const posibles = texto.match(/\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
-  if(!posibles) return 0;
+function detectarTotalReal(texto) {
 
-  const numeros = posibles.map(v=>
-    parseFloat(v.replace(/[^\d.]/g,''))
-  );
+    const lineas = texto.split("\n");
 
-  return Math.max(...numeros);
-}
+    for (let linea of lineas) {
 
-inputArchivo.addEventListener("change", async function(){
+        if (/total\s*a\s*pagar/i.test(linea)) {
 
-  const archivo = inputArchivo.files[0];
-  if(!archivo) return;
+            const match = linea.match(/\$?\s?(\d{1,4}(\.\d{1,2})?)/);
 
-  estado.textContent = "Procesando recibo... ⏳";
-  resultado.innerHTML = "";
-
-  try{
-
-    const texto = await extraerTexto(archivo);
-
-    const total = detectarTotal(texto);
-
-    estado.textContent = "Análisis completo ✅";
-
-    if(total>0){
-      resultado.innerHTML = `
-        <h2>Total detectado:</h2>
-        <h1>$${total.toFixed(2)} MXN</h1>
-      `;
-    }else{
-      resultado.innerHTML = `
-        <h2>No se pudo detectar el total</h2>
-        <p>Revisa que la imagen esté clara</p>
-      `;
+            if (match) {
+                return parseFloat(match[1]);
+            }
+        }
     }
 
-  }catch(error){
-    console.error(error);
-    estado.textContent = "Error al procesar el archivo ❌";
-  }
+    return null;
+}
 
-});
+inputArchivo.addEventListener("change", async () => {
 
+    const archivo = inputArchivo.files[0];
+    if (!archivo) return;
+
+    estado.textContent = "Analizando recibo...";
+    resultado.innerHTML = "";
+
+    try {
+
+        const texto = await extraerTexto(archivo);
+        const total = detectarTotalReal(texto);
+
+        if (total !== null) {
+            resultado.innerHTML = `
+                <div class="card">
+                    <h2>Total real detectado:</h2>
+                    <div class="total">$${total.toFixed(2)} MXN</div>
+                </div>
+            `;
+            estado.textContent = "Análisis completo ✅";
+        } else {
+            resultado.innerHTML = `
+                <div class="error">
+                    No se pudo detectar el total correctamente.
+                </div>
+            `;
+            estado.textContent = "Error en detección";
+        }
+
+    } catch (error) {
+        estado.textContent = "Error al procesar archivo";
+        console.error(error);
+    }
 });
 </script>
 
