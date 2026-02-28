@@ -1,37 +1,36 @@
+// Configuración de PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 const input = document.getElementById("archivo");
 const estado = document.getElementById("estado");
-const panelResultado = document.getElementById("resultado");
+const container = document.getElementById("res-container");
 
 input.addEventListener("change", async () => {
     const file = input.files[0];
     if (!file) return;
 
-    estado.textContent = "🔍 Analizando datos del recibo...";
-    panelResultado.style.display = "none";
+    estado.innerHTML = "⏳ <b>Procesando recibo...</b><br>Esto puede tomar 5-10 segundos.";
+    container.style.display = "none";
 
     try {
         const texto = await extraerTexto(file);
-        procesarDatosRecibo(texto);
-    } catch (e) {
-        estado.textContent = "❌ Error al procesar el archivo.";
-        console.error(e);
+        procesarRecibo(texto);
+    } catch (err) {
+        estado.textContent = "❌ Error al leer el archivo.";
+        console.error(err);
     }
 });
 
 async function extraerTexto(file) {
     if (file.type === "application/pdf") {
-        const pdfData = new Uint8Array(await file.arrayBuffer());
-        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-        const page = await pdf.getPage(1); // Analizamos la primera página que es la principal
+        const data = new Uint8Array(await file.arrayBuffer());
+        const pdf = await pdfjsLib.getDocument({ data }).promise;
+        const page = await pdf.getPage(1);
         const viewport = page.getViewport({ scale: 2 });
         const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: context, viewport }).promise;
-        
+        const ctx = canvas.getContext("2d");
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        await page.render({ canvasContext: ctx, viewport }).promise;
         const { data: { text } } = await Tesseract.recognize(canvas, 'spa');
         return text;
     } else {
@@ -40,38 +39,46 @@ async function extraerTexto(file) {
     }
 }
 
-function procesarDatosRecibo(texto) {
-    console.log("Texto extraído:", texto); // Útil para depurar en GitHub
-    
-    // 1. Buscar Tarifa (Ejemplo: Tarifa 1, 1A, DAC, etc.)
-    const tarifaMatch = texto.match(/TARIFA[:\s]+([A-Z0-9]+)/i);
-    const tarifa = tarifaMatch ? tarifaMatch[1] : "No detectada";
+function procesarRecibo(texto) {
+    const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    console.log("Debug Texto:", texto); // Puedes verlo en la consola de GitHub
 
-    // 2. Buscar Total a Pagar
-    // Buscamos la frase "TOTAL A PAGAR" y luego el número que sigue
-    let total = "No detectado";
-    const lineas = texto.split('\n');
-    for (let i = 0; i < lineas.length; i++) {
-        if (/TOTAL A PAGAR/i.test(lineas[i])) {
-            // Buscamos el primer número que parezca moneda en esa línea o la siguiente
-            const montoMatch = lineas[i].match(/(\d{1,6}[\.,]\d{2})|(\d{1,6})/);
-            if (montoMatch) {
-                total = `$${montoMatch[0]}`;
-                break;
-            }
+    // 1. EXTRAER TARIFA
+    const tarifaMatch = texto.match(/TARIFA[:\s]+([A-Z0-9]+)/i);
+    const tarifa = tarifaMatch ? tarifaMatch[1] : "01";
+
+    // 2. EXTRAER TOTAL (Lógica de valor máximo)
+    let totalDetectado = "No detectado";
+    // Busca patrones de dinero: 1,234.00, 500.00, etc.
+    const montos = texto.match(/(\d{1,3}(,\d{3})*(\.\d{2}))|(\d{2,6}\.\d{2})/g);
+    
+    if (montos) {
+        // Convertimos a números reales y buscamos el mayor
+        const valoresNumericos = montos.map(m => parseFloat(m.replace(/,/g, '')));
+        const valorMaximo = Math.max(...valoresNumericos);
+        
+        if (valorMaximo > 0) {
+            totalDetectado = `$${valorMaximo.toLocaleString('es-MX', {minimumFractionDigits: 2})} MXN`;
         }
     }
 
-    // 3. Buscar Titular (Destinatario)
-    // Normalmente el nombre está en las primeras líneas del recibo de luz
-    // Este es un método de aproximación: tomamos la primera línea con texto largo que no sea el logo
-    const titular = lineas.find(l => l.trim().length > 10 && !/CFE|Suministrador/i.test(l)) || "No detectado";
-
-    // Mostrar resultados
-    document.getElementById("res-titular").textContent = titular.trim();
-    document.getElementById("res-tarifa").textContent = tarifa;
-    document.getElementById("res-total").textContent = total;
+    // 3. EXTRAER TITULAR
+    // En CFE, el nombre suele estar entre la línea 2 y 6, evitando palabras del logo
+    const palabrasBasura = /CFE|Suministrador|Servicios|Básicos|Recibo|Luz|Pagar|Total|Tarifa|Medidor/i;
+    let titular = "No detectado";
     
-    estado.textContent = "✅ Análisis Completo";
-    panelResultado.style.display = "block";
+    for (let i = 0; i < Math.min(lineas.length, 10); i++) {
+        if (lineas[i].length > 12 && !palabrasBasura.test(lineas[i])) {
+            titular = lineas[i];
+            break;
+        }
+    }
+
+    // Dibujar resultados
+    document.getElementById("res-titular").textContent = titular;
+    document.getElementById("res-tarifa").textContent = tarifa;
+    document.getElementById("res-total").textContent = totalDetectado;
+    
+    estado.textContent = "✅ Análisis Finalizado";
+    container.style.display = "block";
 }
