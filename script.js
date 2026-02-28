@@ -1,97 +1,77 @@
-// Configuración del Worker de PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-const inputArchivo = document.getElementById("archivo");
+const input = document.getElementById("archivo");
 const estado = document.getElementById("estado");
-const resultado = document.getElementById("resultado");
+const panelResultado = document.getElementById("resultado");
 
-/**
- * Función para extraer texto de PDF o Imagen
- */
+input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    estado.textContent = "🔍 Analizando datos del recibo...";
+    panelResultado.style.display = "none";
+
+    try {
+        const texto = await extraerTexto(file);
+        procesarDatosRecibo(texto);
+    } catch (e) {
+        estado.textContent = "❌ Error al procesar el archivo.";
+        console.error(e);
+    }
+});
+
 async function extraerTexto(file) {
     if (file.type === "application/pdf") {
         const pdfData = new Uint8Array(await file.arrayBuffer());
         const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-        let textoCompleto = "";
-
-        // Recorrer todas las páginas del PDF
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 2 });
-            const canvas = document.createElement("canvas");
-            const context = canvas.getContext("2d");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-
-            await page.render({ canvasContext: context, viewport }).promise;
-
-            // Procesar la imagen de la página con Tesseract
-            const { data: { text } } = await Tesseract.recognize(canvas, 'spa');
-            textoCompleto += text + "\n";
-        }
-        return textoCompleto;
+        const page = await pdf.getPage(1); // Analizamos la primera página que es la principal
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context, viewport }).promise;
+        
+        const { data: { text } } = await Tesseract.recognize(canvas, 'spa');
+        return text;
     } else {
-        // Si es imagen (JPG/PNG), Tesseract la procesa directamente
         const { data: { text } } = await Tesseract.recognize(file, 'spa');
         return text;
     }
 }
 
-/**
- * Lógica para buscar el monto total en el texto extraído
- */
-function detectarTotalReal(texto) {
-    const lineas = texto.split("\n");
+function procesarDatosRecibo(texto) {
+    console.log("Texto extraído:", texto); // Útil para depurar en GitHub
     
-    for (let linea of lineas) {
-        // Busca "TOTAL" o "IMPORTE TOTAL" (insensible a mayúsculas)
-        if (/total/i.test(linea)) {
-            // Busca números con formato 00.00 o 00,00
-            const match = linea.match(/(\d{1,5}([\.,]\d{2}))/);
-            if (match) {
-                // Reemplazamos coma por punto para que parseFloat funcione
-                return parseFloat(match[1].replace(',', '.'));
+    // 1. Buscar Tarifa (Ejemplo: Tarifa 1, 1A, DAC, etc.)
+    const tarifaMatch = texto.match(/TARIFA[:\s]+([A-Z0-9]+)/i);
+    const tarifa = tarifaMatch ? tarifaMatch[1] : "No detectada";
+
+    // 2. Buscar Total a Pagar
+    // Buscamos la frase "TOTAL A PAGAR" y luego el número que sigue
+    let total = "No detectado";
+    const lineas = texto.split('\n');
+    for (let i = 0; i < lineas.length; i++) {
+        if (/TOTAL A PAGAR/i.test(lineas[i])) {
+            // Buscamos el primer número que parezca moneda en esa línea o la siguiente
+            const montoMatch = lineas[i].match(/(\d{1,6}[\.,]\d{2})|(\d{1,6})/);
+            if (montoMatch) {
+                total = `$${montoMatch[0]}`;
+                break;
             }
         }
     }
-    return null;
+
+    // 3. Buscar Titular (Destinatario)
+    // Normalmente el nombre está en las primeras líneas del recibo de luz
+    // Este es un método de aproximación: tomamos la primera línea con texto largo que no sea el logo
+    const titular = lineas.find(l => l.trim().length > 10 && !/CFE|Suministrador/i.test(l)) || "No detectado";
+
+    // Mostrar resultados
+    document.getElementById("res-titular").textContent = titular.trim();
+    document.getElementById("res-tarifa").textContent = tarifa;
+    document.getElementById("res-total").textContent = total;
+    
+    estado.textContent = "✅ Análisis Completo";
+    panelResultado.style.display = "block";
 }
-
-/**
- * Evento cuando el usuario selecciona un archivo
- */
-inputArchivo.addEventListener("change", async () => {
-    const archivo = inputArchivo.files[0];
-    if (!archivo) return;
-
-    estado.textContent = "Procesando... esto puede tardar un poco ⏳";
-    resultado.innerHTML = "";
-
-    try {
-        const texto = await extraerTexto(archivo);
-        console.log("Texto detectado:", texto); // Ver en consola para depurar
-        
-        const total = detectarTotalReal(texto);
-
-        if (total !== null) {
-            resultado.innerHTML = `
-                <div class="card">
-                    <strong>Total detectado:</strong>
-                    <div class="total">$${total.toFixed(2)} MXN</div>
-                </div>
-            `;
-            estado.textContent = "Análisis finalizado con éxito";
-        } else {
-            resultado.innerHTML = `
-                <div class="error">
-                    No se encontró el monto total. Intenta con una imagen más clara.
-                </div>
-            `;
-            estado.textContent = "Error en la detección";
-        }
-
-    } catch (error) {
-        estado.textContent = "Ocurrió un error al leer el archivo";
-        console.error("Error OCR:", error);
-    }
-});
