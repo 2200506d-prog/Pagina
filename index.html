@@ -1,194 +1,36 @@
 <!DOCTYPE html>
 <html lang="es">
-
-<!-- ========= ESTE ES EL PUNTO 2 ========= -->
-
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Analizador Inteligente CFE</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR de Recibos - GitHub Pages</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
-<style>
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #061b11, #0d2f1f);
-    color: #ffffff;
-    text-align: center;
-}
-
-.container {
-    max-width: 900px;
-    margin: 40px auto;
-    padding: 30px;
-    background: #0f2a1d;
-    border-radius: 20px;
-    box-shadow: 0 0 40px rgba(0,255,120,0.2);
-}
-
-h1 {
-    color: #00ff88;
-    font-size: 2.5rem;
-}
-
-input[type="file"] {
-    margin-top: 20px;
-    padding: 12px;
-    border-radius: 10px;
-    border: 2px solid #00ff88;
-    background: #062016;
-    color: white;
-}
-
-.card {
-    margin-top: 30px;
-    padding: 30px;
-    background: #132f23;
-    border-radius: 20px;
-    border-left: 6px solid #00ff88;
-    box-shadow: 0 0 25px rgba(0,255,120,0.2);
-}
-
-.total {
-    font-size: 3rem;
-    color: #00ff88;
-    font-weight: bold;
-}
-
-.error {
-    margin-top: 20px;
-    padding: 15px;
-    background: #3a1010;
-    border-radius: 10px;
-    color: #ff6b6b;
-}
-
-#estado {
-    margin-top: 15px;
-    color: #00ff88;
-    font-weight: bold;
-}
-</style>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        h2 { color: #1a73e8; text-align: center; }
+        .upload-area { border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer; margin-bottom: 20px; }
+        #estado { font-size: 0.9em; color: #555; text-align: center; margin-bottom: 10px; }
+        .card { background: #e8f0fe; border-left: 5px solid #1a73e8; padding: 15px; border-radius: 4px; text-align: center; }
+        .total { font-size: 28px; font-weight: bold; color: #174ea6; margin-top: 10px; }
+        .error { color: #d93025; background: #fce8e6; padding: 10px; border-radius: 4px; text-align: center; }
+    </style>
 </head>
-
 <body>
 
-<div class="container">
+    <div class="container">
+        <h2>Lector de Recibos</h2>
+        <div class="upload-area">
+            <input type="file" id="archivo" accept="image/*,.pdf" style="width: 100%;">
+        </div>
+        
+        <div id="estado">Selecciona un archivo PDF o Imagen</div>
+        <div id="resultado"></div>
+    </div>
 
-<h1>Analizador Inteligente de Recibos CFE ⚡</h1>
-
-<p>Sube tu recibo (imagen o PDF)</p>
-
-<input type="file" id="archivo" accept=".png,.jpg,.jpeg,.pdf">
-
-<p id="estado"></p>
-
-<div id="resultado"></div>
-
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
-
-<script>
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
-const inputArchivo = document.getElementById("archivo");
-const estado = document.getElementById("estado");
-const resultado = document.getElementById("resultado");
-
-async function extraerTexto(file) {
-    if (file.type === "application/pdf") {
-        const pdfData = new Uint8Array(await file.arrayBuffer());
-        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-        let textoCompleto = "";
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 2 });
-            const canvas = document.createElement("canvas");
-            const context = canvas.getContext("2d");
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-
-            await page.render({ canvasContext: context, viewport }).promise;
-
-            const { data: { text } } =
-                await Tesseract.recognize(canvas, 'spa');
-
-            textoCompleto += text + "\n";
-        }
-
-        return textoCompleto;
-    } else {
-        const reader = new FileReader();
-        return new Promise(resolve => {
-            reader.onload = async function () {
-                const { data: { text } } =
-                    await Tesseract.recognize(reader.result, 'spa');
-                resolve(text);
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-}
-
-function detectarTotalReal(texto) {
-
-    const lineas = texto.split("\n");
-
-    for (let linea of lineas) {
-
-        if (/total\s*a\s*pagar/i.test(linea)) {
-
-            const match = linea.match(/\$?\s?(\d{1,4}(\.\d{1,2})?)/);
-
-            if (match) {
-                return parseFloat(match[1]);
-            }
-        }
-    }
-
-    return null;
-}
-
-inputArchivo.addEventListener("change", async () => {
-
-    const archivo = inputArchivo.files[0];
-    if (!archivo) return;
-
-    estado.textContent = "Analizando recibo...";
-    resultado.innerHTML = "";
-
-    try {
-
-        const texto = await extraerTexto(archivo);
-        const total = detectarTotalReal(texto);
-
-        if (total !== null) {
-            resultado.innerHTML = `
-                <div class="card">
-                    <h2>Total real detectado:</h2>
-                    <div class="total">$${total.toFixed(2)} MXN</div>
-                </div>
-            `;
-            estado.textContent = "Análisis completo ✅";
-        } else {
-            resultado.innerHTML = `
-                <div class="error">
-                    No se pudo detectar el total correctamente.
-                </div>
-            `;
-            estado.textContent = "Error en detección";
-        }
-
-    } catch (error) {
-        estado.textContent = "Error al procesar archivo";
-        console.error(error);
-    }
-});
-</script>
-
+    <script src="script.js"></script>
 </body>
 </html>
