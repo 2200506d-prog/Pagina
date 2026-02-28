@@ -3,47 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analizador de Recibos - Martín Rigoberto</title>
+    <title>Analizador CFE - Martín Rigoberto Ruiz Chávez</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        :root { --verde-cfe: #2d572c; --gris-suave: #f4f7f6; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--gris-suave); margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 450px; }
-        
-        /* Nombre solicitado hasta arriba */
-        .user-header { text-align: center; color: #1a1a1a; font-size: 18px; font-weight: bold; margin-bottom: 5px; border-bottom: 2px solid var(--verde-cfe); pb: 5px; }
-        .sub-header { text-align: center; color: var(--verde-cfe); font-size: 14px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
-
-        .upload-section { border: 2px dashed var(--verde-cfe); padding: 30px; border-radius: 15px; text-align: center; background: #f0fdf4; margin-bottom: 20px; transition: 0.3s; }
-        .upload-section:hover { background: #dcfce7; }
-        
-        #estado { text-align: center; color: #666; font-size: 14px; margin-bottom: 15px; min-height: 20px; }
-        
-        .result-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        :root { --azul-cfe: #004a99; --verde-cfe: #00a94f; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--azul-cfe) 0%, var(--verde-cfe) 100%);
+        }
+        .card {
+            background: white; padding: 25px;
+            border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            width: 100%; max-width: 450px;
+        }
+        .user-header {
+            text-align: center; color: #1a1a1a;
+            font-size: 19px; font-weight: bold;
+            border-bottom: 3px solid var(--verde-cfe);
+            padding-bottom: 10px; margin-bottom: 20px;
+        }
+        .upload-section {
+            border: 2px dashed var(--azul-cfe); padding: 20px;
+            border-radius: 15px; text-align: center;
+            background: #f0f7ff; margin-bottom: 20px;
+        }
+        #estado { text-align: center; color: #555; font-size: 14px; margin-bottom: 15px; }
+        .result-item { border-bottom: 1px solid #eee; padding: 10px 0; }
         .label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: bold; }
-        .value { font-size: 18px; color: #333; font-weight: 700; margin-top: 5px; }
-        .total-value { color: var(--verde-cfe); font-size: 26px; }
+        .value { font-size: 16px; color: #333; font-weight: 700; }
+        .total-value { color: var(--verde-cfe); font-size: 22px; }
         
-        input[type="file"] { cursor: pointer; width: 100%; }
+        /* Contenedor de la Gráfica */
+        .chart-container { margin-top: 20px; height: 250px; }
     </style>
 </head>
 <body>
     <div class="card">
         <div class="user-header">Martín Rigoberto Ruiz Chávez</div>
-        <div class="sub-header">Analizador de Recibos CFE</div>
-
+        
         <div class="upload-section">
             <input type="file" id="archivo" accept="image/*,.pdf">
         </div>
 
-        <div id="estado">Esperando archivo...</div>
+        <div id="estado">Esperando recibo...</div>
 
         <div id="res-container" style="display:none;">
             <div class="result-item">
-                <div class="label">Titular del Servicio:</div>
+                <div class="label">Titular:</div>
                 <div id="res-titular" class="value">---</div>
             </div>
             <div class="result-item">
@@ -53,6 +66,10 @@
             <div class="result-item">
                 <div class="label">Total a Pagar:</div>
                 <div id="res-total" class="value total-value">---</div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="graficaConsumo"></canvas>
             </div>
         </div>
     </div>
