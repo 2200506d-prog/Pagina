@@ -3,51 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analizador de Recibos de Luz</title>
+    <title>Analizador de Recibos - Martín Rigoberto</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f8f9fa; padding: 20px; color: #333; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        h1 { font-size: 1.5rem; color: #2d572c; text-align: center; }
-        .upload-box { border: 2px dashed #2d572c; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0; background: #f0fdf4; }
-        #estado { text-align: center; font-weight: bold; color: #666; margin-bottom: 15px; }
-        .resultado-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; }
-        .dato { margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        .label { font-size: 0.8rem; color: #777; text-transform: uppercase; font-weight: bold; }
-        .valor { font-size: 1.1rem; color: #1a1a1a; font-weight: 600; }
-        .monto { color: #2d572c; font-size: 1.5rem; }
+        :root { --verde-cfe: #2d572c; --gris-suave: #f4f7f6; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--gris-suave); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 450px; }
+        
+        /* Nombre solicitado hasta arriba */
+        .user-header { text-align: center; color: #1a1a1a; font-size: 18px; font-weight: bold; margin-bottom: 5px; border-bottom: 2px solid var(--verde-cfe); pb: 5px; }
+        .sub-header { text-align: center; color: var(--verde-cfe); font-size: 14px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .upload-section { border: 2px dashed var(--verde-cfe); padding: 30px; border-radius: 15px; text-align: center; background: #f0fdf4; margin-bottom: 20px; transition: 0.3s; }
+        .upload-section:hover { background: #dcfce7; }
+        
+        #estado { text-align: center; color: #666; font-size: 14px; margin-bottom: 15px; min-height: 20px; }
+        
+        .result-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .label { font-size: 11px; color: #888; text-transform: uppercase; font-weight: bold; }
+        .value { font-size: 18px; color: #333; font-weight: 700; margin-top: 5px; }
+        .total-value { color: var(--verde-cfe); font-size: 26px; }
+        
+        input[type="file"] { cursor: pointer; width: 100%; }
     </style>
 </head>
 <body>
+    <div class="card">
+        <div class="user-header">Martín Rigoberto Ruiz Chávez</div>
+        <div class="sub-header">Analizador de Recibos CFE</div>
 
-    <div class="container">
-        <h1>Escáner de Recibo de Luz</h1>
-        
-        <div class="upload-box">
+        <div class="upload-section">
             <input type="file" id="archivo" accept="image/*,.pdf">
         </div>
 
-        <div id="estado">Sube tu recibo para analizar</div>
+        <div id="estado">Esperando archivo...</div>
 
-        <div id="resultado" class="resultado-card" style="display: none;">
-            <div class="dato">
+        <div id="res-container" style="display:none;">
+            <div class="result-item">
                 <div class="label">Titular del Servicio:</div>
-                <div id="res-titular" class="valor">---</div>
+                <div id="res-titular" class="value">---</div>
             </div>
-            <div class="dato">
+            <div class="result-item">
                 <div class="label">Tarifa:</div>
-                <div id="res-tarifa" class="valor">---</div>
+                <div id="res-tarifa" class="value">---</div>
             </div>
-            <div class="dato">
+            <div class="result-item">
                 <div class="label">Total a Pagar:</div>
-                <div id="res-total" class="valor monto">---</div>
+                <div id="res-total" class="value total-value">---</div>
             </div>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
