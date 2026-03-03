@@ -3,24 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Proyecto en GitHub</title>
+    <title>Mi Proyecto Web</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <header>
+        <nav>
+            <div class="logo">MiMarca</div>
+            <ul class="nav-links">
+                <li><a href="#inicio">Inicio</a></li>
+                <li><a href="#servicios">Servicios</a></li>
+                <li><a href="#contacto">Contacto</a></li>
+            </ul>
+            <button id="theme-toggle">🌙</button>
+        </nav>
+    </header>
 
-    <main class="card">
-        <h1>Panel de Control</h1>
-        <p>Estado del sistema: <span id="status">Activo</span></p>
-        
-        <div class="action-area">
-            <input type="text" id="userInput" placeholder="Escribe algo aquí...">
-            <button id="mainBtn">Ejecutar Acción</button>
-        </div>
+    <section id="inicio" class="hero">
+        <h1>Diseño e Ingeniería de Vanguardia</h1>
+        <p>Soluciones personalizadas para tus proyectos más ambiciosos.</p>
+        <a href="#contacto" class="btn-main">Empezar ahora</a>
+    </section>
 
-        <div id="displayArea" class="display-none">
-            <p id="resultText"></p>
+    <section id="servicios">
+        <h2 class="section-title">Nuestros Servicios</h2>
+        <div class="grid-container">
+            <div class="card">
+                <h3>Robótica</h3>
+                <p>Implementación de sistemas automatizados y control de movimiento.</p>
+            </div>
+            <div class="card">
+                <h3>Circuitos</h3>
+                <p>Diseño de PCB y optimización de sistemas eléctricos.</p>
+            </div>
+            <div class="card">
+                <h3>Software</h3>
+                <p>Desarrollo a medida con las últimas tecnologías del mercado.</p>
+            </div>
         </div>
-    </main>
+    </section>
+
+    <section id="contacto">
+        <h2>Contáctanos</h2>
+        <form id="contact-form">
+            <input type="text" placeholder="Tu nombre" required>
+            <input type="email" placeholder="Tu correo" required>
+            <textarea placeholder="Cuéntanos sobre tu proyecto"></textarea>
+            <button type="submit">Enviar Mensaje</button>
+        </form>
+    </section>
 
     <script src="script.js"></script>
 </body>
