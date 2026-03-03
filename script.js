@@ -1,113 +1,126 @@
-// Configuración de PDF.js para renderizado de alta calidad
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-const fileInput = document.getElementById('file-input');
-const status = document.getElementById('status');
-const results = document.getElementById('results');
-let myChart = null;
+const inputArchivo = document.getElementById("archivo");
+const estado = document.getElementById("estado");
+const resultado = document.getElementById("resultado");
 
-fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+let grafica;
 
-    status.innerHTML = "<b>Paso 1/2:</b> Extrayendo imágenes del documento...";
-    results.classList.add('hidden');
+async function extraerTexto(file) {
 
-    try {
-        let imageToProcess;
+    if (file.type === "application/pdf") {
 
-        if (file.type === "application/pdf") {
-            // Renderizamos el PDF con alta resolución (escala 3.0) para que el OCR no falle
-            imageToProcess = await convertPdfToImage(file, 3.0);
-        } else {
-            imageToProcess = file;
+        const pdfData = new Uint8Array(await file.arrayBuffer());
+        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+        let texto = "";
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 2 });
+
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({ canvasContext: context, viewport }).promise;
+
+            const { data: { text } } =
+                await Tesseract.recognize(canvas, 'spa');
+
+            texto += text + "\n";
         }
 
-        status.innerHTML = "<b>Paso 2/2:</b> Analizando texto con IA... (esto tarda 5-10 seg)";
-        
-        // Iniciamos Tesseract en español
-        const worker = await Tesseract.createWorker('spa');
-        const { data: { text } } = await worker.recognize(imageToProcess);
-        await worker.terminate();
-
-        procesarDatosRecibo(text);
-    } catch (error) {
-        console.error("Error detallado:", error);
-        status.innerText = "Error: El documento es demasiado complejo o está protegido.";
+        return texto;
     }
-});
 
-async function convertPdfToImage(file, scale) {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-    const page = await pdf.getPage(1); 
-    
-    const viewport = page.getViewport({ scale: scale });
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-
-    await page.render({ canvasContext: context, viewport: viewport }).promise;
-    return canvas.toDataURL('image/png');
+    const reader = new FileReader();
+    return new Promise(resolve => {
+        reader.onload = async function () {
+            const { data: { text } } =
+                await Tesseract.recognize(reader.result, 'spa');
+            resolve(text);
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
-function procesarDatosRecibo(texto) {
-    // Limpiamos el texto de saltos de línea raros para facilitar la búsqueda
-    const textoLimpio = texto.replace(/\n/g, " ").toUpperCase();
-    console.log("Texto Escaneado:", textoLimpio);
-
-    // --- LÓGICA DE EXTRACCIÓN MEJORADA ---
-    
-    // 1. Buscar el Total a Pagar
-    // Busca el símbolo $ seguido de números, o la palabra TOTAL
-    let monto = 0;
-    const regexDinero = /(?:TOTAL|PAGAR|TOTAL A PAGAR).*?\$?\s?([\d,]+\.\d{2})/;
-    const matchDinero = textoLimpio.match(regexDinero);
-    if (matchDinero) {
-        monto = matchDinero[1].replace(/,/g, "");
-    }
-
-    // 2. Buscar el Consumo (kWh)
-    // Busca números antes de la palabra KWH
-    let consumo = 0;
-    const regexKwh = /(\d+)\s?(?:KWH|KILOWATTS)/;
-    const matchKwh = textoLimpio.match(regexKwh);
-    if (matchKwh) {
-        consumo = matchKwh[1];
-    }
-
-    // Mostrar resultados
-    if (monto > 0 || consumo > 0) {
-        document.getElementById('res-precio').innerText = `$${monto}`;
-        document.getElementById('res-consumo').innerText = consumo;
-        status.innerText = "¡Análisis exitoso!";
-        results.classList.remove('hidden');
-        generarGrafica(parseInt(consumo));
-    } else {
-        status.innerHTML = "❌ No se detectaron datos claros. <br><small>Intenta con una foto más nítida o un PDF original.</small>";
-    }
+function limpiarNumero(valor) {
+    return parseFloat(valor.replace(/,/g, ''));
 }
 
-function generarGrafica(consumoReal) {
-    const ctx = document.getElementById('consumptionChart').getContext('2d');
-    if (myChart) myChart.destroy();
+function detectarDatos(texto) {
 
-    myChart = new Chart(ctx, {
-        type: 'doughnut', // Cambiado a dona para que se vea más moderno
+    const datos = {};
+
+    const totalMatch = texto.match(/total\s*a\s*pagar[\s:$]*([\d,]+\.\d+)/i);
+    if (totalMatch) datos.total = limpiarNumero(totalMatch[1]);
+
+    const consumoMatch = texto.match(/energia\s*\(kwh\).*?(\d+)/i);
+    if (consumoMatch) datos.consumo = parseInt(consumoMatch[1]);
+
+    const ivaMatch = texto.match(/iva\s*16%?.*?([\d,]+\.\d+)/i);
+    if (ivaMatch) datos.iva = limpiarNumero(ivaMatch[1]);
+
+    const dapMatch = texto.match(/dap.*?([\d,]+\.\d+)/i);
+    if (dapMatch) datos.dap = limpiarNumero(dapMatch[1]);
+
+    const energiaMatch = texto.match(/energia\s+([\d,]+\.\d+)/i);
+    if (energiaMatch) datos.energia = limpiarNumero(energiaMatch[1]);
+
+    return datos;
+}
+
+function crearGrafica(consumo) {
+
+    const ctx = document.getElementById('grafica');
+
+    if (grafica) grafica.destroy();
+
+    grafica = new Chart(ctx, {
+        type: 'bar',
         data: {
-            labels: ['Tu Consumo (kWh)', 'Límite Básico'],
+            labels: ['Consumo (kWh)'],
             datasets: [{
-                data: [consumoReal, 150], // 150 kWh suele ser el límite de tarifa básica
-                backgroundColor: ['#2563eb', '#e5e7eb'],
-                borderWidth: 0
+                label: 'kWh',
+                data: [consumo],
+                backgroundColor: '#00ff88'
             }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'bottom' }
-            }
         }
     });
-            }
+}
+
+inputArchivo.addEventListener("change", async () => {
+
+    const archivo = inputArchivo.files[0];
+    if (!archivo) return;
+
+    estado.textContent = "Analizando factura...";
+    resultado.innerHTML = "";
+
+    const texto = await extraerTexto(archivo);
+    const datos = detectarDatos(texto);
+
+    if (!datos.total) {
+        estado.textContent = "No se pudo detectar el total correctamente";
+        return;
+    }
+
+    resultado.innerHTML = `
+        <div class="card">
+            <div class="total">$${datos.total.toFixed(2)} MXN</div>
+            <div class="detalle">
+                <p><strong>Consumo:</strong> ${datos.consumo || 'No detectado'} kWh</p>
+                <p><strong>Energía:</strong> $${datos.energia || '0'} MXN</p>
+                <p><strong>IVA:</strong> $${datos.iva || '0'} MXN</p>
+                <p><strong>DAP:</strong> $${datos.dap || '0'} MXN</p>
+            </div>
+        </div>
+    `;
+
+    if (datos.consumo) crearGrafica(datos.consumo);
+
+    estado.textContent = "Análisis completo ✅";
+});
