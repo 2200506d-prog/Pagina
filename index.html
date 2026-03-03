@@ -1,34 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Lector de Recibo CFE</title>
-
-  <!-- PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-
-  <!-- Tesseract OCR -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lectura de Recibo de Luz CFE</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+  <div class="container">
+    <h1>Martin Rigoberto Ruiz Chavez</h1>
+    <h2>Probabilidad y Estadística</h2>
+    <h3>Factura de Consumo de Energía Eléctrica (CFE)</h3>
 
-<h2>Analizador de Recibo CFE ⚡</h2>
+    <p><strong>Sube tu recibo (imagen o PDF):</strong></p>
+    <input type="file" id="archivo" accept=".png,.jpg,.jpeg,.pdf" />
+    <p id="estado"></p>
 
-<input type="file" id="archivo" accept=".pdf,image/*">
-<br><br>
+    <div>
+      <label for="tarifa">Selecciona tarifa estimada:</label>
+      <select id="tarifa">
+        <option value="0.87">Doméstica 1 ($0.87/kWh)</option>
+        <option value="1.20">Doméstica 1C ($1.20/kWh)</option>
+        <option value="1.50">Doméstica de Alto Consumo (DAC) ($1.50/kWh)</option>
+      </select>
+    </div>
 
-<label>Selecciona tarifa manual (si no se detecta):</label>
-<select id="tarifaManual">
-  <option value="1">Tarifa 1</option>
-  <option value="1A">Tarifa 1A</option>
-  <option value="1B">Tarifa 1B</option>
-</select>
+    <h4>Tu tarifa de consumo es la siguiente</h4>
+    
+    <div id="textoDetectado"></div>
+    <div id="tabla"></div>
+    <div id="total"></div>
+    <div id="costo"></div>
+  </div>
 
-<p id="estado"></p>
-<div id="resultado"></div>
-
-<script src="script.js"></script>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
+  
+  <script src="script.js"></script>
 </body>
 </html>
