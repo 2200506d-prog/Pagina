@@ -1,58 +1,34 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Proyecto Web</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Lector de Recibo CFE</title>
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+  <!-- Tesseract OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 </head>
+
 <body>
-    <header>
-        <nav>
-            <div class="logo">MiMarca</div>
-            <ul class="nav-links">
-                <li><a href="#inicio">Inicio</a></li>
-                <li><a href="#servicios">Servicios</a></li>
-                <li><a href="#contacto">Contacto</a></li>
-            </ul>
-            <button id="theme-toggle">🌙</button>
-        </nav>
-    </header>
 
-    <section id="inicio" class="hero">
-        <h1>Diseño e Ingeniería de Vanguardia</h1>
-        <p>Soluciones personalizadas para tus proyectos más ambiciosos.</p>
-        <a href="#contacto" class="btn-main">Empezar ahora</a>
-    </section>
+<h2>Analizador de Recibo CFE ⚡</h2>
 
-    <section id="servicios">
-        <h2 class="section-title">Nuestros Servicios</h2>
-        <div class="grid-container">
-            <div class="card">
-                <h3>Robótica</h3>
-                <p>Implementación de sistemas automatizados y control de movimiento.</p>
-            </div>
-            <div class="card">
-                <h3>Circuitos</h3>
-                <p>Diseño de PCB y optimización de sistemas eléctricos.</p>
-            </div>
-            <div class="card">
-                <h3>Software</h3>
-                <p>Desarrollo a medida con las últimas tecnologías del mercado.</p>
-            </div>
-        </div>
-    </section>
+<input type="file" id="archivo" accept=".pdf,image/*">
+<br><br>
 
-    <section id="contacto">
-        <h2>Contáctanos</h2>
-        <form id="contact-form">
-            <input type="text" placeholder="Tu nombre" required>
-            <input type="email" placeholder="Tu correo" required>
-            <textarea placeholder="Cuéntanos sobre tu proyecto"></textarea>
-            <button type="submit">Enviar Mensaje</button>
-        </form>
-    </section>
+<label>Selecciona tarifa manual (si no se detecta):</label>
+<select id="tarifaManual">
+  <option value="1">Tarifa 1</option>
+  <option value="1A">Tarifa 1A</option>
+  <option value="1B">Tarifa 1B</option>
+</select>
 
-    <script src="script.js"></script>
+<p id="estado"></p>
+<div id="resultado"></div>
+
+<script src="script.js"></script>
+
 </body>
 </html>
