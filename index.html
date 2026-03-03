@@ -1,48 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analiza TU PDF - Recibo de Luz</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/tesseract.js@v4.0.1/dist/tesseract.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis de Factura Eléctrica</title>
+
+<link rel="stylesheet" href="styles.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
-    <div class="container">
-        <header>
-            <h1>Analiza TU PDF ⚡</h1>
-            <p>Sube tu recibo (PDF o Imagen) para extraer consumo y costo.</p>
-        </header>
 
-        <main>
-            <div class="upload-section">
-                <input type="file" id="file-input" accept="application/pdf, image/*">
-                <label for="file-input" class="btn-upload">Seleccionar Recibo</label>
-                <div id="status">Esperando archivo...</div>
-            </div>
+<div class="container">
 
-            <div id="results" class="hidden">
-                <div class="cards-container">
-                    <div class="card">
-                        <h3>Consumo</h3>
-                        <p id="res-consumo">--</p>
-                        <span>kWh</span>
-                    </div>
-                    <div class="card">
-                        <h3>Total a Pagar</h3>
-                        <p id="res-precio">--</p>
-                        <span>MXN</span>
-                    </div>
-                </div>
+<div class="header">
+    <h2 class="subtitulo">ANÁLISIS DE FACTURA ELÉCTRICA</h2>
+    <h1>Analizador Inteligente de Recibos CFE ⚡</h1>
+</div>
 
-                <div class="chart-container">
-                    <canvas id="consumptionChart"></canvas>
-                </div>
-            </div>
-        </main>
-    </div>
-    <script src="script.js"></script>
+<input type="file" id="archivo" accept=".png,.jpg,.jpeg,.pdf">
+
+<p id="estado"></p>
+
+<div id="resultado"></div>
+
+<canvas id="grafica" style="margin-top:30px;"></canvas>
+
+</div>
+
+<script src="script.js"></script>
+
 </body>
 </html>
