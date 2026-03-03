@@ -1,59 +1,69 @@
+:root {
+    --primary-color: #00d2ff;
+    --bg-dark: #1a1a2e;
+    --card-bg: #16213e;
+    --text-light: #e9ecef;
+}
+
 body {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg,#061b11,#0d2f1f);
-    color: white;
-    text-align: center;
-}
-
-.container {
-    max-width: 900px;
-    margin: 40px auto;
-    padding: 40px;
-    background: #0f2a1d;
-    border-radius: 20px;
-    box-shadow: 0 0 40px rgba(0,255,120,0.15);
-}
-
-.header {
-    margin-bottom: 30px;
-}
-
-.subtitulo {
-    font-size: 0.9rem;
-    letter-spacing: 3px;
-    color: #00ff88;
-    opacity: 0.7;
-}
-
-h1 {
-    color: #00ff88;
-}
-
-input[type="file"] {
-    margin-top: 20px;
-    padding: 12px;
-    border-radius: 10px;
-    border: 2px solid #00ff88;
-    background: #062016;
-    color: white;
 }
 
 .card {
-    margin-top: 30px;
-    padding: 25px;
-    background: #132f23;
-    border-radius: 20px;
-    border-left: 6px solid #00ff88;
+    background: var(--card-bg);
+    padding: 2.5rem;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
-.total {
-    font-size: 2.5rem;
-    color: #00ff88;
+h1 { margin-bottom: 0.5rem; color: var(--primary-color); }
+
+.action-area {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+input {
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: #0f3460;
+    color: white;
+    outline: none;
+}
+
+button {
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    background: var(--primary-color);
+    color: #1a1a2e;
     font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.3s;
 }
 
-.detalle {
-    margin-top: 15px;
-    text-align: left;
+button:hover {
+    background: #00a8cc;
+    transform: translateY(-2px);
+}
+
+.display-none { display: none; }
+
+#displayArea {
+    margin-top: 20px;
+    padding: 10px;
+    border-left: 4px solid var(--primary-color);
+    background: rgba(0, 210, 255, 0.1);
 }
