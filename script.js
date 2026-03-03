@@ -1,22 +1,26 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('mainBtn');
-    const input = document.getElementById('userInput');
-    const display = document.getElementById('displayArea');
-    const result = document.getElementById('resultText');
+// Cambio de Tema (Oscuro/Claro)
+const themeToggle = document.getElementById('theme-toggle');
+const body = document.body;
 
-    btn.addEventListener('click', () => {
-        const valor = input.value.trim();
+themeToggle.addEventListener('click', () => {
+    const isDark = body.getAttribute('data-theme') === 'dark';
+    body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    themeToggle.textContent = isDark ? '🌙' : '☀️';
+});
 
-        if (valor !== "") {
-            // Mostrar el área de resultado y el texto
-            display.classList.remove('display-none');
-            result.innerText = `Has enviado: ${valor}`;
-            
-            // Limpiar input
-            input.value = "";
-            console.log("Acción ejecutada correctamente en GitHub.");
-        } else {
-            alert("Por favor, ingresa algún dato.");
-        }
+// Manejo del Formulario
+document.getElementById('contact-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    alert('¡Gracias por tu mensaje! Nos pondremos en contacto pronto.');
+    this.reset();
+});
+
+// Efecto de scroll suave
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({
+            behavior: 'smooth'
+        });
     });
 });
