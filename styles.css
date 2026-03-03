@@ -1,69 +1,96 @@
 :root {
-    --primary-color: #00d2ff;
-    --bg-dark: #1a1a2e;
-    --card-bg: #16213e;
-    --text-light: #e9ecef;
+    --primary-color: #2563eb;
+    --bg-color: #ffffff;
+    --text-color: #1f2937;
+    --card-bg: #f3f4f6;
+}
+
+[data-theme="dark"] {
+    --bg-color: #111827;
+    --text-color: #f9fafb;
+    --card-bg: #1f2937;
 }
 
 body {
-    background-color: var(--bg-dark);
-    color: var(--text-light);
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background 0.3s;
+    line-height: 1.6;
+}
+
+/* Navegación */
+nav {
     display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 1rem;
+    background: var(--primary-color);
+    color: white;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* Hero Section */
+.hero {
+    height: 60vh;
+    display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    margin: 0;
+    text-align: center;
+    background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=1000') center/cover;
+    color: white;
+}
+
+.btn-main {
+    padding: 12px 24px;
+    background: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    margin-top: 20px;
+}
+
+/* Grid de Servicios */
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding: 40px;
 }
 
 .card {
     background: var(--card-bg);
-    padding: 2.5rem;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    padding: 20px;
+    border-radius: 10px;
     text-align: center;
-    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
-h1 { margin-bottom: 0.5rem; color: var(--primary-color); }
-
-.action-area {
-    margin-top: 2rem;
+/* Formulario */
+form {
+    max-width: 500px;
+    margin: 40px auto;
     display: flex;
     flex-direction: column;
     gap: 15px;
+    padding: 20px;
 }
 
-input {
-    padding: 12px;
-    border-radius: 8px;
-    border: none;
-    background: #0f3460;
-    color: white;
-    outline: none;
-}
-
-button {
-    padding: 12px;
-    border-radius: 8px;
-    border: none;
-    background: var(--primary-color);
-    color: #1a1a2e;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.2s, background 0.3s;
-}
-
-button:hover {
-    background: #00a8cc;
-    transform: translateY(-2px);
-}
-
-.display-none { display: none; }
-
-#displayArea {
-    margin-top: 20px;
+input, textarea {
     padding: 10px;
-    border-left: 4px solid var(--primary-color);
-    background: rgba(0, 210, 255, 0.1);
+    border: 1px solid #ccc;
+    border-radius: 5px;
 }
